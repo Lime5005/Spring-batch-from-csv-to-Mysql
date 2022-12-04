@@ -7,9 +7,12 @@ import lombok.AllArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+
+import org.springframework.batch.core.configuration.support.DefaultBatchConfiguration;
+import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
@@ -20,24 +23,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-@EnableBatchProcessing
+//@EnableBatchProcessing
 @AllArgsConstructor
-public class MyBatchConfig {
+public class MyBatchConfig extends DefaultBatchConfiguration {
 
     // Since JobBuilderFactory is deprecated, so use the new one
 
-    @Autowired
-    public JobBuilderFactory jobBuilder;
+//    @Autowired
+//    public JobBuilderFactory jobBuilder;
+//
+//    @Autowired
+//    public StepBuilderFactory stepBuilder;
 
-    @Autowired
-    public StepBuilderFactory stepBuilder;
+
 
     @Bean
-    public Job importPersonJob(JobCompletionNotificationListener listener, Step step1) {
-        return jobBuilder.get("importPerson")
-                .incrementer(new RunIdIncrementer())
+    public Job importPersonJob(JobRepository jobRepository, JobCompletionNotificationListener listener, Step step1) {
+        return new JobBuilder("importPersonJob", jobRepository)
                 .listener(listener)
                 .flow(step1)
                 .end()
@@ -45,9 +50,9 @@ public class MyBatchConfig {
     }
 
     @Bean
-    public Step step1() {
-        return stepBuilder.get("step1")
-                .<Person, Person>chunk(10)
+    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("step1", jobRepository)
+                .<Person, Person>chunk(10, transactionManager)
                 .reader(myReader())
                 .processor(myProcessor())
                 .writer(myWriter())
